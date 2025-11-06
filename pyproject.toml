@@ -1,0 +1,66 @@
+[project]
+name = "feishu-mcp-sdk"
+version = "0.1.0"
+description = "A Model Context Protocol (MCP) server for Feishu Bitable integration"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Edison Zhang", email = "zhangn661@gmail.com"}
+]
+keywords = ["mcp", "feishu", "bitable", "sdk", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "aiohttp>=3.9.0",
+    "httpx>=0.27.0",
+    "fastapi>=0.109.0",
+    "mcp>=1.17.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "typer>=0.9.0",
+    "fastmcp>=2.13.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.12.0",
+    "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.scripts]
+feishu-mcp= "feishu_mcp_sdk.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "black>=23.12.0",
+    "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
+    "pyinstaller>=6.0.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
