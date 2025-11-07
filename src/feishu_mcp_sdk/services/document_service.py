@@ -408,8 +408,12 @@ class DocumentService(HTTPClientMixin):
     async def update_document(
         self,
         document_id: str,
-        content: str,
+        content: Optional[str] = None,
         block_id: Optional[str] = None,
+        requests: Optional[list] = None,
+        document_revision_id: int = -1,
+        client_token: Optional[str] = None,
+        user_id_type: str = "open_id",
     ) -> dict:
         """
         Update document content using batch_update API.
@@ -418,61 +422,247 @@ class DocumentService(HTTPClientMixin):
 
         Args:
             document_id: Document token
-            content: Text content to update
-            block_id: Block ID to update (required for updating existing blocks)
+            content: (Simple mode) Text content to update
+            block_id: (Simple mode) Block ID to update
+            requests: (Advanced mode) List of update_block_request objects
+            document_revision_id: Document version (-1 for latest, default: -1)
+            client_token: Client token for idempotency (optional)
+            user_id_type: User ID type (default: "open_id")
 
         Returns:
             Dictionary containing update result
         """
         try:
-            if not block_id:
+            # Determine which mode to use
+            if requests is not None:
+                # Advanced mode: use provided requests
+                update_requests = requests
+            elif content is not None and block_id is not None:
+                # Simple mode: construct request from content and block_id
+                if not block_id:
+                    return {
+                        "success": False,
+                        "msg": "block_id is required for updating document blocks",
+                    }
+                update_requests = [
+                    {
+                        "block_id": block_id,
+                        "update_text_elements": {
+                            "elements": [
+                                {
+                                    "text_run": {
+                                        "content": content,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ]
+            else:
                 return {
                     "success": False,
-                    "msg": "block_id is required for updating document blocks",
+                    "msg": "Either (content and block_id) or requests must be provided",
                 }
 
             uri = f"{self._base_url}/docx/v1/documents/{document_id}/blocks/batch_update"
             params: Dict[str, Any] = {
-                "requests": [
-                    {
-                        "block_id": block_id,
-                        "update_block": {
-                            "text": {
-                                "elements": [
-                                    {
-                                        "type": "text_run",
-                                        "text_run": {
-                                            "text": content,
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                ],
+                "requests": update_requests,
             }
+
+            # Build query parameters
+            query_params: Dict[str, Any] = {
+                "document_revision_id": document_revision_id,
+                "user_id_type": user_id_type,
+            }
+            if client_token:
+                query_params["client_token"] = client_token
+
+            # Build URL with query parameters
+            if query_params:
+                from urllib.parse import urlencode
+
+                query_string = urlencode(query_params)
+                uri = f"{uri}?{query_string}"
 
             response = await self._patch(uri, json=params)
             result = self._parse_response(response)
 
             data = result.get("data", {})
             responses = data.get("responses", [])
-            if responses:
-                update_result = responses[0]
+
+            # Return full response for advanced mode, simplified for simple mode
+            if requests is not None:
+                # Advanced mode: return full response
                 return {
                     "success": True,
                     "message": "Document updated successfully",
-                    "block_id": update_result.get("block_id"),
-                    "status": update_result.get("status"),
+                    "data": data,
                 }
             else:
-                return {
-                    "success": False,
-                    "msg": "No response from batch update",
-                }
+                # Simple mode: return simplified response
+                if responses:
+                    update_result = responses[0]
+                    return {
+                        "success": True,
+                        "message": "Document updated successfully",
+                        "block_id": update_result.get("block_id"),
+                        "status": update_result.get("status"),
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "msg": "No response from batch update",
+                    }
 
         except Exception as e:
             return {
                 "success": False,
                 "msg": f"Failed to update document: {str(e)}",
+            }
+
+    async def create_blocks(
+        self,
+        document_id: str,
+        block_id: str,
+        children: list,
+        index: int = -1,
+        document_revision_id: int = -1,
+        client_token: Optional[str] = None,
+        user_id_type: str = "open_id",
+    ) -> dict:
+        """
+        Create blocks in a document.
+
+        Reference: https://open.feishu.cn/document/server-docs/docs/docs/docx-v1/document-block-children/create
+
+        Args:
+            document_id: Document token
+            block_id: Parent block ID (use document_id for root level)
+            children: List of block objects to create
+            index: Index to insert blocks at (default: -1, inserts at end).
+                Index starts from 0 (first position). Use -1 to insert at the last position.
+            document_revision_id: Document version (-1 for latest, default: -1)
+            client_token: Client token for idempotency (optional)
+            user_id_type: User ID type (default: "open_id")
+
+        Returns:
+            Dictionary containing created blocks information
+        """
+        try:
+            uri = f"{self._base_url}/docx/v1/documents/{document_id}/blocks/{block_id}/children"
+            params: Dict[str, Any] = {
+                "index": index,
+                "children": children,
+            }
+
+            query_params: Dict[str, Any] = {
+                "document_revision_id": document_revision_id,
+                "user_id_type": user_id_type,
+            }
+            if client_token:
+                query_params["client_token"] = client_token
+
+            # Build URL with query parameters
+            if query_params:
+                from urllib.parse import urlencode
+
+                query_string = urlencode(query_params)
+                uri = f"{uri}?{query_string}"
+
+            response = await self._post(uri, json=params)
+            result = self._parse_response(response)
+
+            data = result.get("data", {})
+            created_blocks = data.get("children", [])
+            return {
+                "success": True,
+                "message": "Blocks created successfully",
+                "children": created_blocks,
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "msg": f"Failed to create blocks: {str(e)}",
+            }
+
+    async def delete_blocks(
+        self,
+        document_id: str,
+        block_id: str,
+        start_index: int,
+        end_index: int,
+        document_revision_id: int = -1,
+        client_token: Optional[str] = None,
+    ) -> dict:
+        """
+        Delete blocks from a document.
+
+        Reference: https://open.feishu.cn/document/server-docs/docs/docs/docx-v1/document-block-children/batch_delete
+
+        Args:
+            document_id: Document unique identifier
+            block_id: Parent block ID (use document_id for root level)
+            start_index: Starting index for deletion (inclusive, left-closed interval)
+            end_index: Ending index for deletion (exclusive, right-open interval)
+                start_index must be less than end_index
+            document_revision_id: Document version to operate on (-1 for latest, default: -1)
+            client_token: Client token for idempotency (optional)
+
+        Returns:
+            Dictionary containing:
+            - success: Boolean indicating if operation succeeded
+            - message: Status message
+            - document_revision_id: Document version after deletion
+            - client_token: Client token for idempotency
+
+        Note:
+            Application rate limit: 3 requests per second per app. If exceeded, API returns HTTP 400
+            with error code 99991400. Use exponential backoff or other rate limiting strategies.
+
+            Document rate limit: 3 concurrent edits per second per document (includes create,
+            update, delete operations). If exceeded, API returns HTTP 429.
+
+            Important restrictions:
+            - Cannot delete table rows/columns or grid columns (use update_block API instead)
+            - Cannot delete all children of TableCell, GridColumn, or Callout blocks
+        """
+        try:
+            uri = f"{self._base_url}/docx/v1/documents/{document_id}/blocks/{block_id}/children/batch_delete"
+
+            # Build query parameters
+            query_params: Dict[str, Any] = {
+                "document_revision_id": document_revision_id,
+            }
+            if client_token:
+                query_params["client_token"] = client_token
+
+            # Build URL with query parameters
+            if query_params:
+                from urllib.parse import urlencode
+
+                query_string = urlencode(query_params)
+                uri = f"{uri}?{query_string}"
+
+            # Build request body
+            body: Dict[str, Any] = {
+                "start_index": start_index,
+                "end_index": end_index,
+            }
+
+            response = await self._delete(uri, json=body)
+            result = self._parse_response(response)
+
+            data = result.get("data", {})
+            return {
+                "success": True,
+                "message": "Blocks deleted successfully",
+                "document_revision_id": data.get("document_revision_id"),
+                "client_token": data.get("client_token"),
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "msg": f"Failed to delete blocks: {str(e)}",
             }

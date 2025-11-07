@@ -94,6 +94,9 @@ class HTTPClientMixin:
                     # Retry the original request with the new token
                     response = await client.request(method, url, headers=headers, **kwargs)
 
+            if not response.is_success:
+                print(response.text)
+
             return response
 
     async def _get(
