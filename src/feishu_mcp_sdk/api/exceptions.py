@@ -1,7 +1,9 @@
 """Custom exceptions for Feishu API errors."""
 
+from feishu_mcp_sdk.exceptions import FeishuMCPError
 
-class FeishuError(Exception):
+
+class FeishuError(FeishuMCPError):
     """Base exception for all Feishu API errors."""
 
     def __init__(self, message: str, code: int = None, details: dict = None):

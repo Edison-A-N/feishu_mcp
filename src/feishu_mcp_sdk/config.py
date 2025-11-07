@@ -1,7 +1,9 @@
 """Configuration management using Pydantic Settings."""
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from feishu_mcp_sdk.exceptions import ConfigurationError
 
 
 class Settings(BaseSettings):
@@ -21,6 +23,24 @@ class Settings(BaseSettings):
     # Feishu OAuth Configuration
     app_id: str = Field(default="", alias="APP_ID")
     app_secret: str = Field(default="", alias="APP_SECRET")
+
+    @model_validator(mode="after")
+    def validate_required_credentials(self):
+        """Validate that required OAuth credentials are provided."""
+        missing_fields = []
+        if not self.app_id or not self.app_id.strip():
+            missing_fields.append("APP_ID")
+        if not self.app_secret or not self.app_secret.strip():
+            missing_fields.append("APP_SECRET")
+
+        if missing_fields:
+            fields_str = " and ".join(missing_fields)
+            raise ConfigurationError(
+                f"Required configuration fields are missing or empty: {fields_str}. "
+                f"Please set these environment variables or add them to your .env file."
+            )
+
+        return self
 
     # Feishu API Configuration
     host: str = Field(default="https://open.feishu.cn/open-apis/", alias="HOST")
