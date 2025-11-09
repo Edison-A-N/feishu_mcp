@@ -1,5 +1,6 @@
 """MCP Server implementation for Feishu Document integration."""
 
+from pathlib import Path
 from typing import Optional
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +23,38 @@ feishu_client = FeishuClient()
 
 # Initialize document service
 document_service = DocumentService(feishu_client)
+
+
+@mcp.resource("docx://block-structure", mime_type="text/markdown")
+async def get_block_structure() -> str:
+    """
+    Get comprehensive DocX block data structure documentation.
+
+    This resource provides detailed information about all block types, their data structures,
+    content entities, and enumerations used in Feishu DocX documents. It includes:
+    - Block type definitions and block_type enum values
+    - Content entity structures (BlockData) for each block type
+    - Text element structures (TextElement, TextRun, MentionUser, MentionDoc, etc.)
+    - Style structures (TextStyle, TextElementStyle)
+    - All enumeration values (Align, FontColor, CodeLanguage, etc.)
+
+    Use this resource when you need to understand the exact data structure for:
+    - Creating blocks with complex content (links, images, mentions, etc.)
+    - Updating blocks with specific formatting or embedded content
+    - Understanding enum values for alignment, colors, languages, etc.
+
+    Returns:
+        Markdown-formatted documentation (text/markdown) containing complete block structure specifications
+    """
+    # Get the path to docx_block_structure.md file in resources directory
+    current_dir = Path(__file__).parent
+    doc_path = current_dir / "resources" / "docx_block_structure.md"
+
+    if doc_path.exists():
+        return doc_path.read_text(encoding="utf-8")
+    else:
+        # Fallback: return a message if file not found
+        return "# DocX Block Structure Documentation\n\nDocumentation file not found. Please ensure docx_block_structure.md exists in the resources directory."
 
 
 @mcp.tool()
@@ -204,6 +237,10 @@ async def update_document(
     1. Simple mode: Update text content by providing content and block_id
     2. Advanced mode: Provide full requests list to support all batch_update capabilities
 
+    **Important**: For complex data structures involving hyperlinks, image embeds, mentions (@user, @doc),
+    text formatting, or other advanced block features, refer to the block structure resource
+    `docx://block-structure` to understand the exact data structure requirements before making updates.
+
     Args:
         document_id: Document unique identifier (can be extracted from Feishu document URL).
             Example: "doxcnePuYufKa49ISjhD8Iabcef"
@@ -232,6 +269,8 @@ async def update_document(
                 * replace_file: Replace file attachment (token, block_id)
                 * update_text: Update text elements and style (elements: list of text_element)
                 * update_task: Update task block (task_id, folded)
+
+            For detailed structure of text elements (links, mentions, formatting), refer to resource: docx://block-structure
         document_revision_id: Document version to operate on. -1 means latest version.
             Document version starts from 1. To query latest version, requires document read permission.
             To query historical version, requires document edit permission.
@@ -337,6 +376,10 @@ async def create_blocks(
     """
     Create blocks in a document.
 
+    **Important**: For complex block structures involving hyperlinks, image embeds, mentions (@user, @doc),
+    text formatting, tables, or other advanced features, refer to the block structure resource
+    `docx://block-structure` to understand the exact data structure requirements before creating blocks.
+
     Args:
         document_id: Document token (can be extracted from Feishu document URL)
         block_id: Parent block ID (use document_id for root level). Valid parent blocks include:
@@ -346,6 +389,8 @@ async def create_blocks(
         children: List of block objects to create. Each block must have:
             - block_type (int): Block type number (see Block Types below)
             - Content fields based on block_type (see Block Structure below)
+
+            For detailed structure of all block types and their content entities, refer to resource: docx://block-structure
         index: Index to insert blocks at (default: -1, inserts at end).
             Index starts from 0 (first position). Use -1 to insert at the last position.
         document_revision_id: Document version (-1 for latest, default: -1)
