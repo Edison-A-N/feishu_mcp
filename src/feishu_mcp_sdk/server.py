@@ -58,6 +58,42 @@ async def get_block_structure() -> str:
 
 
 @mcp.tool()
+async def get_block_structure_docs() -> dict:
+    """
+    Get comprehensive DocX block data structure documentation.
+
+    **IMPORTANT**: Call this tool BEFORE using create_blocks or update_document
+    with complex data structures (links, images, mentions, formatting, tables, etc.)
+    to understand the exact data structure requirements.
+
+    This tool returns the complete block structure documentation including:
+    - Block type definitions and block_type enum values
+    - Content entity structures (BlockData) for each block type
+    - Text element structures (TextElement, TextRun, MentionUser, MentionDoc, etc.)
+    - Style structures (TextStyle, TextElementStyle)
+    - All enumeration values (Align, FontColor, CodeLanguage, etc.)
+
+    Returns:
+        Dictionary containing:
+        - success: Boolean indicating if operation succeeded
+        - documentation: Markdown-formatted documentation with complete block structure specifications
+    """
+    current_dir = Path(__file__).parent
+    doc_path = current_dir / "resources" / "docx_block_structure.md"
+
+    if doc_path.exists():
+        return {
+            "success": True,
+            "documentation": doc_path.read_text(encoding="utf-8"),
+        }
+    else:
+        return {
+            "success": False,
+            "documentation": "# DocX Block Structure Documentation\n\nDocumentation file not found. Please ensure docx_block_structure.md exists in the resources directory.",
+        }
+
+
+@mcp.tool()
 async def list_documents(
     folder_token: Optional[str] = None,
     page_size: int = 50,
