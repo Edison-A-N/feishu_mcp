@@ -61,6 +61,9 @@ class Settings(BaseSettings):
 
     oauth_scope: str = Field(default="docs:doc drive:drive docx:document", alias="OAUTH_SCOPE")
 
+    # Read-only mode configuration
+    read_only_mode: bool = Field(default=False, alias="READ_ONLY_MODE")
+
 
 def get_settings() -> Settings:
     """Get the application settings instance."""
