@@ -3,7 +3,6 @@
 from pathlib import Path
 from typing import Optional
 
-from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
 
 from feishu_mcp_sdk.api.client import FeishuClient
@@ -602,22 +601,6 @@ if not settings.read_only_mode:
             document_revision_id=document_revision_id,
             client_token=client_token if client_token else None,
         )
-
-
-def create_app():
-    """Create and configure the FastAPI app with CORS middleware."""
-    app = mcp.sse_app()
-
-    # Add CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # Allows all origins
-        allow_credentials=True,
-        allow_methods=["*"],  # Allows all methods
-        allow_headers=["*"],  # Allows all headers
-    )
-
-    return app
 
 
 async def run_server(transport: str = "stdio"):

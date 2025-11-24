@@ -112,13 +112,10 @@ python -m feishu_mcp_sdk.server
 ### As a Python Package
 
 ```python
-from feishu_mcp_sdk import create_app, run_server
+from feishu_mcp_sdk import run_server
 import asyncio
 
-# Create app for integration
-app = create_app()
-
-# Or run server directly
+# Run server directly
 asyncio.run(run_server(transport="stdio"))
 ```
 
