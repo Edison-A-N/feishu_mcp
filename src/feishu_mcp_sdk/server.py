@@ -629,4 +629,4 @@ async def run_server(transport: str = "stdio"):
             - "stdio": Standard input/output transport
             - "streamable-http": Streamable HTTP transport
     """
-    await mcp.run_async(transport=transport)
+    await mcp.run_async(transport=transport, show_banner=False)
